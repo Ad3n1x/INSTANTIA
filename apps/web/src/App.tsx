@@ -12,6 +12,7 @@ export default function App() {
   const [files, setFiles] = useState<File[]>([]);
   const [decision, setDecision] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
+  const [plan, setPlan] = useState<any | null>(null);
   const [capabilities] = useState<Tool[]>([
     { id: 'image-to-pdf', name: 'Image to PDF', description: 'Combine images into one clean, downloadable PDF.', category: 'DOCUMENTS', mode: 'VERIFIED', status: 'ready' },
     { id: 'csv-summary', name: 'CSV quick analysis', description: 'Get useful summaries from rows and columns.', category: 'DATA', mode: 'VERIFIED', status: 'planned' },
@@ -19,12 +20,13 @@ export default function App() {
   ]);
   async function routeRequest(value = prompt) {
     if (!value.trim()) { setNotice({ tone: 'warn', text: 'Describe what you want INSTANTIA to do first.' }); return; }
-    setBusy(true); setNotice(null); setDecision(false);
+    setBusy(true); setNotice(null); setPlan(null); setDecision(false);
     try {
       const res = await fetch(API + '/api/requests/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: value }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'The request could not be routed.');
       setNotice({ tone: 'good', text: data.message || 'Verified capability selected.' });
+      setPlan(data.plan || null);
       setPrompt(value);
     } catch (e) { setNotice({ tone: 'bad', text: e instanceof Error ? e.message : 'Could not reach the INSTANTIA API.' }); }
     finally { setBusy(false); }
@@ -56,6 +58,11 @@ export default function App() {
         <div className="composer"><textarea value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="e.g. Combine these images into one PDF…" rows={3}/><div className="composer-foot"><span><Cloud size={13}/> Runs in the cloud · no local engine</span><button className="primary" disabled={busy} onClick={()=>routeRequest()}>{busy?<LoaderCircle className="spin" size={15}/>:<ArrowUpRight size={15}/>} Find capability</button></div></div>
         <div className="suggestions"><span>TRY</span>{['Convert images to PDF','Analyze a CSV file','Build a custom booking tool'].map(s=><button key={s} onClick={()=>{setPrompt(s);if(s.includes('PDF'))setNotice({tone:'good',text:'Choose images in the Image to PDF card below, then create your PDF.'})}}>{s}<ChevronRight size={12}/></button>)}</div>
         {notice && <div className={'notice '+notice.tone}>{notice.text}</div>}
+{plan && <div className="plan-panel">
+  <div className="plan-head"><div><span className="eyebrow">REQUEST PLAN · NOT EXECUTED</span><h3>{plan.summary}</h3></div><span className="plan-category">{plan.category}</span></div>
+  <div className="plan-columns"><div><strong>Proposed steps</strong><ol>{plan.steps.map((step: string, i: number) => <li key={i}>{step}</li>)}</ol></div>
+  <div><strong>Inputs needed</strong><ul>{plan.requiredInputs.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul><strong>Verification</strong><ul>{plan.verification.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul>{plan.risks.length > 0 && <><strong>Limitations</strong><ul>{plan.risks.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul></>}</div></div>
+</div>}
       </section>
       <section className="section"><div className="section-head"><div><span className="eyebrow">CAPABILITY LIBRARY</span><h2>Tools at your fingertips</h2><p>Verified tools are labelled. Unavailable capabilities stay clearly marked.</p></div><span className="count">{capabilities.length} CAPABILITIES</span></div>
         <div className="cards">{capabilities.map((tool,i)=><article className="cap-card" key={tool.id}><div className={'cap-icon icon-'+i}>{i===0?<FileText size={19}/>:i===1?<FlaskConical size={19}/>:<Sparkles size={19}/>}<span className={'dot '+(tool.status==='ready'?'ready':'')}/></div><div className="meta">{tool.category}<span>{tool.mode}</span></div><h3>{tool.name}</h3><p>{tool.description}</p><div className="card-foot"><span className={tool.status==='ready'?'ready-text':'pending'}>{tool.status==='ready'?'● Ready':tool.status==='planned'?'◌ Planned':'◌ Not configured'}</span><button onClick={()=>tool.id==='image-to-pdf'?document.getElementById('pdf-tool')?.scrollIntoView({behavior:'smooth'}):setNotice({tone:'warn',text:tool.status==='planned'?'CSV analysis is listed but not implemented yet.':'Custom generation is not configured yet; this request will not be falsely marked complete.'})}>Open <ChevronRight size={13}/></button></div></article>)}</div>
