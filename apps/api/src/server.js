@@ -4,6 +4,7 @@ import multer from 'multer';
 import { PDFDocument } from 'pdf-lib';
 import { fileTypeFromBuffer } from 'file-type';
 import { capabilities, routeRequest } from './capabilities.js';
+import { planRequest } from './request-engine.js';
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
@@ -19,14 +20,21 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: max
 
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'instantia-api', version: '0.1.0' }));
 app.get('/api/capabilities', (_req, res) => res.json({ capabilities }));
-app.post('/api/requests/route', (req, res) => {
+app.post('/api/requests/route', async (req, res) => {
   const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim().slice(0, 2000) : '';
   if (!prompt) return res.status(400).json({ error: 'Enter a description of the capability you need.' });
   const route = routeRequest(prompt);
   const capability = capabilities.find(c => c.id === route.capabilityId);
-  if (route.capabilityId === 'csv-summary') return res.status(501).json({ ...route, capability, error: 'CSV analysis is registered but not implemented yet.' });
-  if (route.requiresGenerationProvider) return res.status(501).json({ ...route, capability, error: 'Custom generation is not configured yet. INSTANTIA will not pretend an unbuilt tool is ready.' });
-  return res.json({ ...route, capability, message: 'Verified capability selected. Upload images to create your PDF.' });
+  if (route.capabilityId === 'image-to-pdf') {
+    return res.json({ ...route, capability, executionStatus: 'ready-for-input', message: 'Verified capability selected. Upload images in the Image to PDF tool below to create your PDF.' });
+  }
+  try {
+    const plan = await planRequest(prompt);
+    return res.json({ ...route, capability, plan, executionStatus: plan.executionStatus, message: plan.message });
+  } catch (error) {
+    console.error('Request planning failed:', error?.message || error);
+    return res.status(502).json({ error: 'INSTANTIA could not create a plan right now. Check the configured planning provider and try again.' });
+  }
 });
 
 app.post('/api/tools/image-to-pdf', upload.array('images', 20), async (req, res) => {
