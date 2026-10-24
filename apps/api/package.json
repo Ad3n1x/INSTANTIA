@@ -1,0 +1,9 @@
+{
+  "name": "@instantia/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {"start": "node src/server.js", "dev": "node --watch src/server.js", "test": "node --test"},
+  "dependencies": {"cors": "^2.8.5", "express": "^4.21.2", "file-type": "^19.6.0", "multer": "^1.4.5-lts.1", "pdf-lib": "^1.17.1"},
+  "engines": {"node": ">=20"}
+}
