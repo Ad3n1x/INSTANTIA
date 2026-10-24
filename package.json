@@ -1,0 +1,13 @@
+{
+  "name": "instantia",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/web", "apps/api"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @instantia/api\" \"npm run dev -w @instantia/web\"",
+    "build": "npm run build -w @instantia/web",
+    "test": "npm run test -w @instantia/api"
+  },
+  "devDependencies": {"concurrently": "^9.1.2"},
+  "engines": {"node": ">=20"}
+}
